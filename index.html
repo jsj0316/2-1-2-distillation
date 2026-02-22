@@ -7,6 +7,8 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- 화면 캡처를 위한 html2canvas 라이브러리 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -126,7 +128,7 @@
         }
     </style>
 </head>
-<body class="flex flex-col items-center min-h-screen p-2 md:p-4 overflow-x-hidden">
+<body class="flex flex-col items-center min-h-screen p-2 md:p-4 overflow-x-hidden relative">
 
     <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2 mt-4 drop-shadow-sm text-center">끓는점 차를 이용한 분리</h1>
     
@@ -134,14 +136,15 @@
     <div class="max-w-3xl bg-white/60 p-4 rounded-xl mb-6 text-center shadow-sm">
         <p class="text-slate-700 text-sm md:text-base break-keep leading-relaxed">
             원유를 높은 온도로 가열하여 증류탑으로 보내면 끓는점이 낮은 물질은 기체 상태로 높은 곳까지 이동하고, 
-            끓는점이 높은 물질은 아래쪽에서 액체 상태로 분리됩니다.
+            끓는점이 높은 물질은 아래쪽에서 액체 상태로 분리됩니다.<br>
+            <span class="font-semibold text-blue-700 block mt-1">증류탑은 높이 올라갈수록 온도가 낮아집니다. (같은 색깔의 입자는 종류가 같은 물질입니다.)</span>
         </p>
         <p class="text-slate-500 text-xs mt-2">
-            💡 <b>Tip:</b> 오른쪽 물질 목록에서 하나를 선택한 후, 증류탑의 알맞은 위치를 클릭하여 실험을 완성하세요.
+            🎯 <b>Mission:</b> 증류탑의 각 구간에서 분리되어 나오는 물질을 골라서 올바르게 배치하세요.
         </p>
     </div>
 
-    <div class="flex flex-col lg:flex-row gap-6 w-full max-w-7xl items-center lg:items-start justify-center">
+    <div class="flex flex-col lg:flex-row gap-6 w-full max-w-7xl items-center lg:items-start justify-center flex-1">
         
         <!-- 시뮬레이션 영역 (캔버스 너비 확장 500->600) -->
         <div class="canvas-container relative flex-shrink-0" style="width: 600px; height: 650px;">
@@ -158,13 +161,38 @@
             <!-- 아스팔트 -> 찌꺼기 -->
             <div class="drop-zone" data-target="ASPHALT" style="top: 540px;"></div>
 
-            <!-- 성공 메시지 -->
-            <div id="successMessage" class="hidden absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl backdrop-blur-sm z-50">
-                <div class="bg-white p-8 rounded-2xl shadow-2xl text-center mx-4">
-                    <div class="text-5xl mb-4 animate-bounce">🎉</div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">실험 성공!</h3>
-                    <p class="text-slate-600 break-keep mb-6">원유의 분별 증류 원리를 완벽하게 이해하셨습니다.</p>
-                    <button id="restartGameBtn" class="w-full py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition shadow-lg">다시 하기</button>
+            <!-- 성공 메시지 모달 (개념 빈칸 채우기 추가) -->
+            <div id="successMessage" class="hidden absolute inset-0 flex items-center justify-center bg-black/60 rounded-2xl backdrop-blur-sm z-50 overflow-y-auto">
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl text-center mx-4 max-w-[95%] md:max-w-3xl w-full my-4">
+                    <div class="text-4xl mb-4 animate-bounce">🎉</div>
+                    <h3 class="text-xl md:text-2xl font-bold text-slate-800 mb-4">실험 성공! 핵심 개념을 완성해 보세요.</h3>
+                    
+                    <div class="bg-blue-50 p-5 md:p-6 rounded-xl mb-6 text-left leading-[2.5rem] text-slate-700 font-medium text-base md:text-lg break-keep shadow-inner">
+                        원유는 <span class="quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 border-dashed border-gray-400 bg-white cursor-pointer align-middle transition-all" data-id="b1"></span>이(가) 다른 여러 가지 액체 물질이 섞여 있는 혼합물이다. 
+                        따라서 끓는점 차를 이용하면 원유를 휘발유, 등유, 경유 등으로 분리할 수 있다. 
+                        끓는점이 <span class="quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 border-dashed border-gray-400 bg-white cursor-pointer align-middle transition-all" data-id="b2"></span> 물질이 먼저 
+                        <span class="quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 border-dashed border-gray-400 bg-white cursor-pointer align-middle transition-all" data-id="b3"></span>하고, 
+                        끓는점이 <span class="quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 border-dashed border-gray-400 bg-white cursor-pointer align-middle transition-all" data-id="b4"></span> 물질이 나중에 
+                        <span class="quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 border-dashed border-gray-400 bg-white cursor-pointer align-middle transition-all" data-id="b5"></span>한다. 
+                        원유를 가열하여 증류탑으로 보내면 각 성분 물질이 끓는 온도에 따라 증류탑의 각 층에서 분리된다. 이렇게 분리된 물질은 우리 생활에서 다양하게 이용된다.
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-xl p-4 md:p-5 border border-gray-200 mb-6 text-left" id="wordBankContainer">
+                        <div class="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">단어 보기 (클릭하여 빈칸 채우기)</div>
+                        <div id="wordBank" class="flex flex-wrap gap-2">
+                            <!-- JS로 동적 생성됨 -->
+                        </div>
+                    </div>
+
+                    <div id="quizActionButtons" class="flex gap-3 mb-4">
+                        <button id="resetBlanksBtn" class="w-1/3 py-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold transition shadow-sm">초기화</button>
+                        <button id="checkQuizBtn" class="w-2/3 py-3 bg-gray-300 text-gray-500 rounded-xl font-bold transition shadow-sm cursor-not-allowed" disabled>정답 확인하기</button>
+                    </div>
+
+                    <!-- 모든 빈칸을 채웠을 때 나타나는 최종 성공 메시지 -->
+                    <div id="finalSuccessMsg" class="hidden mb-6 text-green-600 font-bold text-lg animate-pulse"></div>
+
+                    <button id="restartGameBtn" class="w-full py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition shadow-lg hidden">다시 하기</button>
                 </div>
             </div>
         </div>
@@ -190,7 +218,7 @@
 
             <!-- 제어판 -->
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                <h2 class="text-lg font-bold text-slate-700 mb-4">가열 장치 제어</h2>
+                <h2 class="text-lg font-bold text-slate-700 mb-4">장치 제어</h2>
                 
                 <div class="flex items-center justify-between mb-4 bg-slate-50 p-3 rounded-lg">
                     <div class="text-sm text-slate-500">현재 상태</div>
@@ -209,9 +237,22 @@
                 <button id="resetBtn" class="w-full mt-2 py-2 text-slate-500 text-sm hover:text-slate-800 font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition">
                     ↺ 실험 초기화
                 </button>
+                <!-- 캡처 버튼 추가 -->
+                <button id="captureBtn" class="w-full mt-2 py-2 text-blue-500 text-sm hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition flex justify-center items-center gap-2">
+                    📸 화면 캡처
+                </button>
             </div>
         </div>
     </div>
+
+    <!-- 저작권 표시 및 문의 추가 -->
+    <footer class="mt-4 mb-6 text-center text-xs font-bold text-slate-400 w-full">
+        <p>&copy; 제작자 과학체육관</p>
+        <p class="mt-2 font-normal text-slate-500">
+            문의: <a href="mailto:chuseonjae@outlook.kr" class="hover:text-blue-500 transition">chuseonjae@outlook.kr</a> | 
+            인스타: <a href="https://instagram.com/sweat_on_science" target="_blank" class="hover:text-blue-500 transition">@sweat_on_science</a>
+        </p>
+    </footer>
 
     <script>
         // 메인 로직
@@ -221,6 +262,7 @@
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
             const resetBtn = document.getElementById('resetBtn');
+            const captureBtn = document.getElementById('captureBtn'); // 캡처 버튼
             const restartBtn = document.getElementById('restartGameBtn');
             const statusIndicator = document.getElementById('statusIndicator');
             const successMsg = document.getElementById('successMessage');
@@ -319,15 +361,35 @@
                         // 파이프 중간 위쪽에 표시
                         ctx.fillText("액체 상태", TOWER_X + TOWER_W + pipeLength/2, y - 12);
                     }
+
+                    // 분리된 물질을 모아두는 통 그리기 추가 (크기 축소 및 위치 조정)
+                    const bucketW = 18;
+                    const bucketH = 22;
+                    const bucketX = DROP_ZONE_X_START - 18;
+                    const bucketY = y - 2;
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(bucketX, bucketY);
+                    ctx.lineTo(bucketX + 3, bucketY + bucketH);
+                    ctx.lineTo(bucketX + bucketW - 3, bucketY + bucketH);
+                    ctx.lineTo(bucketX + bucketW, bucketY);
+                    ctx.stroke();
+                    ctx.fill();
                 });
 
-                // 4. 가열로 (하단)
+                // 4. 가열로 (하단) - 증류탑이 아닌 원유 저장소 아래로 이동
+                const TANK_W = 80;
+                const TANK_H = 100;
+                
                 ctx.fillStyle = '#b91c1c';
                 ctx.beginPath();
-                ctx.moveTo(TOWER_X, TOWER_Y + TOWER_H);
-                ctx.lineTo(TOWER_X + TOWER_W, TOWER_Y + TOWER_H);
-                ctx.lineTo(TOWER_X + TOWER_W + 15, TOWER_Y + TOWER_H + 40);
-                ctx.lineTo(TOWER_X - 15, TOWER_Y + TOWER_H + 40);
+                ctx.moveTo(TANK_X, TANK_Y + TANK_H);
+                ctx.lineTo(TANK_X + TANK_W, TANK_Y + TANK_H);
+                ctx.lineTo(TANK_X + TANK_W + 10, TANK_Y + TANK_H + 30);
+                ctx.lineTo(TANK_X - 10, TANK_Y + TANK_H + 30);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
@@ -336,12 +398,10 @@
                 if(isHeating) {
                     ctx.font = '20px serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText("🔥", TOWER_X + TOWER_W/2, TOWER_Y + TOWER_H + 25);
+                    ctx.fillText("🔥", TANK_X + TANK_W/2, TANK_Y + TANK_H + 20);
                 }
 
                 // 5. 원유 탱크 및 연결부
-                const TANK_W = 80;
-                const TANK_H = 100;
                 const PIPE_CONN_Y = TOWER_Y + TOWER_H - 40; // 타워 하단부로 연결
 
                 // 연결 파이프 (탱크 -> 타워)
@@ -378,25 +438,16 @@
                 ctx.fillText("원유", TANK_X + TANK_W/2, TANK_Y + 40);
                 ctx.fillText("저장소", TANK_X + TANK_W/2, TANK_Y + 60);
 
-                // 6. 온도계
+                // 6. 구간별 온도 표시 (빨간 온도계 막대 제거)
                 drawThermometer();
             }
 
             function drawThermometer() {
-                const x = 110; // 타워 왼쪽
-                const yStart = 60;
-                const height = 400;
+                const x = 125; // 타워 왼쪽 (타워 X 시작점은 140)
 
-                // 막대
-                ctx.fillStyle = 'rgba(255,255,255,0.8)';
-                ctx.fillRect(x, yStart, 8, height);
-                ctx.strokeStyle = '#94a3b8';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x, yStart, 8, height);
-                
-                // 눈금 및 텍스트
-                ctx.fillStyle = '#64748b';
-                ctx.font = '10px Inter';
+                // 눈금 및 온도 텍스트만 표시
+                ctx.fillStyle = '#475569';
+                ctx.font = 'bold 12px Inter';
                 ctx.textAlign = 'right';
                 
                 const temps = [
@@ -409,21 +460,15 @@
 
                 temps.forEach(item => {
                     ctx.beginPath();
-                    ctx.moveTo(x, item.y);
-                    ctx.lineTo(x-5, item.y);
+                    // 타워를 가리키는 짧은 선
+                    ctx.moveTo(x + 5, item.y);
+                    ctx.lineTo(x + 15, item.y); 
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = 2;
                     ctx.stroke();
-                    ctx.fillText(item.t, x - 8, item.y + 3);
+                    // 온도 텍스트
+                    ctx.fillText(item.t, x, item.y + 4);
                 });
-
-                // 빨간 온도 표시 (가열 시 상승)
-                if (isHeating) {
-                    const mercuryH = height * 0.9;
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(x + 1, yStart + height - mercuryH, 6, mercuryH);
-                } else {
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(x + 1, yStart + height - 20, 6, 20);
-                }
             }
 
             function createBubble() {
@@ -485,8 +530,36 @@
                         }
 
                     } else if (b.state === 'exiting') {
-                        // 3단계: 배출 파이프 이동 (액체 상태)
+                        // 3단계: 배출 파이프 이동 (액체 상태면 벽면에 붙어서 이동)
                         b.x += b.speed;
+                        
+                        // 80(LPG)보다 큰 경우 액체 상태이므로 벽면(바닥)에 붙어서 이동
+                        if (b.targetY > 80) {
+                            const pipeBottomY = b.targetY + 7; // 파이프 내부 바닥 좌표
+                            if (b.y + b.r < pipeBottomY) {
+                                b.y += 0.5; // 아래로 서서히 붙음
+                            }
+                        } else {
+                            // 기체 상태(LPG)는 약간 흔들리며 이동
+                            b.y += Math.sin(b.x * 0.1) * 0.2;
+                        }
+
+                        // 통에 도달하면 아래로 떨어지는 상태로 전환 (수정된 통 위치/크기 반영)
+                        const bucketX = DROP_ZONE_X_START - 18;
+                        if (b.x > bucketX + 8) {
+                            b.state = 'falling';
+                            // 통 바닥에 쌓이는 목표 Y 설정 (통 높이 고려)
+                            b.stopY = b.targetY - 2 + 18 - b.r - Math.random() * 3; 
+                        }
+
+                    } else if (b.state === 'falling') {
+                        // 4단계: 통 안으로 떨어짐
+                        if (b.y < b.stopY) {
+                            b.y += b.speed * 2; // 떨어짐
+                        } else {
+                            // 완전히 떨어지면 화면 밖으로 보내서 배열에서 정리되게 함
+                            b.x = canvas.width + 100;
+                        }
                     }
                     
                     // 그리기
@@ -518,7 +591,7 @@
                 animationId = requestAnimationFrame(animate);
             }
 
-            // --- 게임 로직 (이전과 동일) ---
+            // --- 게임 로직 ---
             function handleItemClick(element) {
                 if (element.classList.contains('hidden-item')) return;
                 document.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('selected'));
@@ -574,6 +647,7 @@
                 
                 if (correctZones === totalZones) {
                     setTimeout(() => {
+                        initConceptQuiz();
                         successMsg.classList.remove('hidden');
                         startSimulation(); 
                     }, 500);
@@ -644,6 +718,197 @@
                 statusIndicator.className = "font-bold text-slate-400";
             }
 
+            // --- 개념 빈칸 채우기 로직 ---
+            const quizAnswers = { b1: '끓는점', b2: '낮은', b3: '기화', b4: '높은', b5: '기화' };
+            const wordBankWords = ['끓는점', '녹는점', '밀도', '낮은', '높은', '빠른', '느린', '기화', '액화', '응결', '승화'];
+            let currentAnswers = { b1: '', b2: '', b3: '', b4: '', b5: '' };
+            let activeBlank = 'b1';
+            let isQuizSubmitted = false;
+
+            function initConceptQuiz() {
+                isQuizSubmitted = false;
+                currentAnswers = { b1: '', b2: '', b3: '', b4: '', b5: '' };
+                activeBlank = 'b1';
+
+                const checkBtn = document.getElementById('checkQuizBtn');
+                document.getElementById('quizActionButtons').classList.remove('hidden');
+                checkBtn.disabled = true;
+                checkBtn.classList.remove('hidden', 'bg-blue-600', 'hover:bg-blue-700', 'text-white');
+                checkBtn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                checkBtn.textContent = '정답 확인하기';
+
+                document.getElementById('finalSuccessMsg').classList.add('hidden');
+                document.getElementById('restartGameBtn').classList.add('hidden');
+                document.getElementById('wordBankContainer').classList.remove('hidden');
+
+                const wordsContainer = document.getElementById('wordBank');
+                wordsContainer.innerHTML = '';
+                
+                // 단어 섞어서 배치
+                const shuffledWords = [...wordBankWords].sort(() => Math.random() - 0.5);
+                shuffledWords.forEach(word => {
+                    const btn = document.createElement('button');
+                    btn.className = 'px-3 py-2 bg-white border border-gray-300 rounded-full shadow-sm text-gray-700 text-sm md:text-base font-medium hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors active:scale-95';
+                    btn.textContent = word;
+                    btn.onclick = () => handleWordSelect(word);
+                    wordsContainer.appendChild(btn);
+                });
+
+                document.querySelectorAll('.quiz-blank').forEach(blank => {
+                    blank.innerHTML = '';
+                    blank.className = 'quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 font-bold transition-all cursor-pointer align-middle border-dashed border-gray-400 bg-white text-gray-800 hover:bg-gray-50';
+                    blank.onclick = () => {
+                        if (isQuizSubmitted) return;
+                        setActiveBlank(blank.dataset.id);
+                        blank.innerHTML = '';
+                        currentAnswers[blank.dataset.id] = '';
+                        checkIfAllFilled();
+                    };
+                });
+                setActiveBlank('b1');
+            }
+
+            function setActiveBlank(id) {
+                if (isQuizSubmitted) return;
+                activeBlank = id;
+                document.querySelectorAll('.quiz-blank').forEach(b => {
+                    b.classList.remove('ring-2', 'ring-blue-200', 'border-blue-500', 'bg-blue-50', 'text-blue-700', 'border-solid');
+                    b.classList.add('border-dashed');
+
+                    if (b.dataset.id === id) {
+                        b.classList.remove('border-dashed', 'border-gray-400');
+                        b.classList.add('border-solid', 'border-blue-500', 'bg-blue-50', 'text-blue-700', 'ring-2', 'ring-blue-200');
+                    } else if (currentAnswers[b.dataset.id]) {
+                        b.classList.remove('border-dashed', 'border-gray-400');
+                        b.classList.add('border-solid', 'border-gray-400', 'bg-white', 'text-gray-800');
+                    }
+                });
+            }
+
+            function handleWordSelect(word) {
+                if (isQuizSubmitted || !activeBlank) return;
+
+                currentAnswers[activeBlank] = word;
+                const blankEl = document.querySelector(`.quiz-blank[data-id="${activeBlank}"]`);
+                blankEl.textContent = word;
+
+                // 다음 빈칸으로 포커스 이동
+                const blanks = ['b1', 'b2', 'b3', 'b4', 'b5'];
+                let nextBlank = null;
+                const currentIndex = blanks.indexOf(activeBlank);
+                for (let i = 1; i < blanks.length; i++) {
+                    const nextIndex = (currentIndex + i) % blanks.length;
+                    if (!currentAnswers[blanks[nextIndex]]) {
+                        nextBlank = blanks[nextIndex];
+                        break;
+                    }
+                }
+
+                if (nextBlank) {
+                    setActiveBlank(nextBlank);
+                } else {
+                    activeBlank = null;
+                    document.querySelectorAll('.quiz-blank').forEach(b => {
+                        b.classList.remove('ring-2', 'ring-blue-200', 'border-blue-500', 'bg-blue-50', 'text-blue-700');
+                        if(currentAnswers[b.dataset.id]) {
+                            b.classList.add('border-solid', 'border-gray-400', 'bg-white', 'text-gray-800');
+                        }
+                    });
+                }
+                checkIfAllFilled();
+            }
+
+            function checkIfAllFilled() {
+                const isAllFilled = Object.values(currentAnswers).every(v => v !== '');
+                const checkBtn = document.getElementById('checkQuizBtn');
+                if (isAllFilled) {
+                    checkBtn.disabled = false;
+                    checkBtn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                    checkBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white', 'shadow-md');
+                } else {
+                    checkBtn.disabled = true;
+                    checkBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'text-white', 'shadow-md');
+                    checkBtn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                }
+            }
+
+            document.getElementById('checkQuizBtn').addEventListener('click', () => {
+                isQuizSubmitted = true;
+                let correctCount = 0;
+                
+                document.querySelectorAll('.quiz-blank').forEach(blank => {
+                    const id = blank.dataset.id;
+                    const isCorrect = currentAnswers[id] === quizAnswers[id];
+                    
+                    blank.classList.remove('border-dashed', 'border-solid', 'border-gray-400', 'border-blue-500', 'bg-blue-50', 'text-blue-700', 'ring-2', 'ring-blue-200');
+                    
+                    if (isCorrect) {
+                        correctCount++;
+                        blank.classList.add('border-solid', 'border-green-500', 'bg-green-50', 'text-green-700');
+                        blank.innerHTML += ' <span class="text-green-600 text-sm ml-1">✔</span>';
+                    } else {
+                        blank.classList.add('border-solid', 'border-red-500', 'bg-red-50', 'text-red-700');
+                        blank.innerHTML += ' <span class="text-red-500 text-sm ml-1">✘</span>';
+                    }
+                });
+
+                document.getElementById('quizActionButtons').classList.add('hidden');
+                document.getElementById('wordBankContainer').classList.add('hidden');
+                
+                const finalMsg = document.getElementById('finalSuccessMsg');
+                finalMsg.classList.remove('hidden');
+                
+                if (correctCount === 5) {
+                    finalMsg.className = 'mb-6 text-green-600 font-bold text-lg animate-pulse';
+                    finalMsg.innerHTML = '🎉 완벽합니다! 모든 개념을 정확히 이해하셨네요.';
+                } else {
+                    finalMsg.className = 'mb-6 text-orange-600 font-bold text-lg';
+                    finalMsg.innerHTML = `😅 아쉽네요. 5문제 중 <span class="text-red-500">${correctCount}</span>문제를 맞췄습니다.`;
+                }
+
+                document.getElementById('restartGameBtn').classList.remove('hidden');
+            });
+
+            // --- 화면 캡처 기능 ---
+            captureBtn.addEventListener('click', () => {
+                // html2canvas를 사용하여 body 전체를 캡처
+                // 사용자 경험을 위해 버튼 텍스트를 잠시 변경
+                const originalText = captureBtn.innerHTML;
+                captureBtn.innerHTML = '⏳ 캡처 중...';
+                captureBtn.disabled = true;
+
+                html2canvas(document.body, {
+                    backgroundColor: '#e0f2fe', // 배경색 지정
+                    scale: 2 // 화질 향상
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = '분별증류_시뮬레이션.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    
+                    captureBtn.innerHTML = originalText;
+                    captureBtn.disabled = false;
+                }).catch(err => {
+                    console.error('캡처 실패:', err);
+                    alert('화면 캡처에 실패했습니다.');
+                    captureBtn.innerHTML = originalText;
+                    captureBtn.disabled = false;
+                });
+            });
+
+            // 빈칸 초기화 버튼 기능
+            document.getElementById('resetBlanksBtn').addEventListener('click', () => {
+                if (isQuizSubmitted) return;
+                currentAnswers = { b1: '', b2: '', b3: '', b4: '', b5: '' };
+                document.querySelectorAll('.quiz-blank').forEach(blank => {
+                    blank.innerHTML = '';
+                    blank.className = 'quiz-blank inline-flex items-center justify-center min-w-[70px] h-[34px] px-2 mx-1 rounded-md border-2 font-bold transition-all cursor-pointer align-middle border-dashed border-gray-400 bg-white text-gray-800 hover:bg-gray-50';
+                });
+                setActiveBlank('b1');
+                checkIfAllFilled();
+            });
+
+            // 이벤트 리스너 바인딩
             startBtn.addEventListener('click', startSimulation);
             stopBtn.addEventListener('click', stopSimulation);
             resetBtn.addEventListener('click', initGame);
