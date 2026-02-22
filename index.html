@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>끓는점 차를 이용한 분리</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e0f2fe;
+            color: #1e293b;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: pan-y;
+        }
+        canvas {
+            background-color: rgba(255, 255, 255, 0.4);
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        /* 드롭존 스타일 */
+        .drop-zone {
+            position: absolute;
+            right: 20px; /* 위치 조정 */
+            width: 140px;
+            height: 40px;
+            border: 2px dashed #94a3b8;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            transition: all 0.2s;
+            cursor: pointer;
+            z-index: 20;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .drop-zone.hover, .drop-zone.active-target {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-color: #3b82f6;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+        .drop-zone.correct {
+            border-style: solid;
+            border-color: #22c55e;
+            background-color: #dcfce7;
+            color: #15803d;
+            font-weight: bold;
+            cursor: default;
+        }
+        /* 찌꺼기 고정 스타일 */
+        .drop-zone.fixed-correct {
+            border-style: solid;
+            border-color: #475569;
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: bold;
+            cursor: default;
+        }
+        
+        /* 드래그 아이템 스타일 */
+        .draggable-item {
+            background-color: white;
+            padding: 10px 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            font-weight: 600;
+            color: #334155;
+            border: 2px solid #e2e8f0;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+            text-align: center;
+            font-size: 0.9rem;
+            touch-action: manipulation;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .draggable-item:active {
+            transform: scale(0.95);
+        }
+        .draggable-item.selected {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+            transform: scale(1.05);
+            z-index: 50;
+        }
+        .draggable-item.hidden-item {
+            display: none;
+        }
+        .temp-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 2px;
+            font-weight: normal;
+        }
+        .draggable-item.selected .temp-label {
+            color: #3b82f6;
+        }
+        
+        /* 애니메이션 */
+        @keyframes bounce-short {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-short {
+            animation: bounce-short 1s infinite;
+        }
+        
+        @media (max-width: 640px) {
+            .canvas-container {
+                transform: scale(0.6); /* 모바일에서 더 축소 */
+                transform-origin: top center;
+                margin-bottom: -250px;
+            }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-2 md:p-4 overflow-x-hidden">
+
+    <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2 mt-4 drop-shadow-sm text-center">끓는점 차를 이용한 분리</h1>
+    
+    <!-- 설명 텍스트 업데이트 -->
+    <div class="max-w-3xl bg-white/60 p-4 rounded-xl mb-6 text-center shadow-sm">
+        <p class="text-slate-700 text-sm md:text-base break-keep leading-relaxed">
+            원유를 높은 온도로 가열하여 증류탑으로 보내면 끓는점이 낮은 물질은 기체 상태로 높은 곳까지 이동하고, 
+            끓는점이 높은 물질은 아래쪽에서 액체 상태로 분리됩니다.
+        </p>
+        <p class="text-slate-500 text-xs mt-2">
+            💡 <b>Tip:</b> 오른쪽 물질 목록에서 하나를 선택한 후, 증류탑의 알맞은 위치를 클릭하여 실험을 완성하세요.
+        </p>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-6 w-full max-w-7xl items-center lg:items-start justify-center">
+        
+        <!-- 시뮬레이션 영역 (캔버스 너비 확장 500->600) -->
+        <div class="canvas-container relative flex-shrink-0" style="width: 600px; height: 650px;">
+            <canvas id="simulationCanvas" width="600" height="650"></canvas>
+            
+            <!-- 드롭존 위치 조정 (top 값 재설정 및 right 위치 캔버스 확장에 맞춤) -->
+            <div class="drop-zone" data-target="LPG" style="top: 80px;">
+                <span class="text-slate-400 text-xs pointer-events-none">여기에 배치</span>
+            </div>
+            <div class="drop-zone" data-target="GASOLINE" style="top: 170px;"></div>
+            <div class="drop-zone" data-target="KEROSENE" style="top: 260px;"></div>
+            <div class="drop-zone" data-target="DIESEL" style="top: 350px;"></div>
+            <div class="drop-zone" data-target="FUEL_OIL" style="top: 440px;"></div>
+            <!-- 아스팔트 -> 찌꺼기 -->
+            <div class="drop-zone" data-target="ASPHALT" style="top: 540px;"></div>
+
+            <!-- 성공 메시지 -->
+            <div id="successMessage" class="hidden absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl backdrop-blur-sm z-50">
+                <div class="bg-white p-8 rounded-2xl shadow-2xl text-center mx-4">
+                    <div class="text-5xl mb-4 animate-bounce">🎉</div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">실험 성공!</h3>
+                    <p class="text-slate-600 break-keep mb-6">원유의 분별 증류 원리를 완벽하게 이해하셨습니다.</p>
+                    <button id="restartGameBtn" class="w-full py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition shadow-lg">다시 하기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 우측 패널 -->
+        <div class="flex flex-col gap-4 w-full max-w-[500px] lg:w-80 pb-10">
+            
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-2xl">🧪</span>
+                <h2 class="text-xl font-bold text-slate-700">실험 도구</h2>
+            </div>
+
+            <!-- 아이템 목록 -->
+            <div class="bg-white/80 backdrop-blur rounded-2xl p-5 shadow-sm border border-white/50">
+                <h2 class="text-lg font-bold text-slate-700 mb-3 flex items-center justify-between">
+                    <span>분리할 물질</span>
+                    <span class="text-xs font-normal bg-blue-100 text-blue-600 px-2 py-1 rounded-full">선택 필수</span>
+                </h2>
+                <div id="draggablesContainer" class="grid grid-cols-2 gap-3 min-h-[150px]">
+                    <!-- JS로 생성됨 -->
+                </div>
+            </div>
+
+            <!-- 제어판 -->
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                <h2 class="text-lg font-bold text-slate-700 mb-4">가열 장치 제어</h2>
+                
+                <div class="flex items-center justify-between mb-4 bg-slate-50 p-3 rounded-lg">
+                    <div class="text-sm text-slate-500">현재 상태</div>
+                    <div id="statusIndicator" class="font-bold text-slate-400">대기 중</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button id="startBtn" class="py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2">
+                        <span>🔥</span> 가열 시작
+                    </button>
+                    <button id="stopBtn" class="py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2" disabled>
+                        <span>⏹</span> 중지
+                    </button>
+                </div>
+                
+                <button id="resetBtn" class="w-full mt-2 py-2 text-slate-500 text-sm hover:text-slate-800 font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+                    ↺ 실험 초기화
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 메인 로직
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('simulationCanvas');
+            const ctx = canvas.getContext('2d');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const restartBtn = document.getElementById('restartGameBtn');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const successMsg = document.getElementById('successMessage');
+
+            let isHeating = false;
+            let animationId;
+            let bubbles = [];
+            let selectedItem = null; 
+
+            // 물질 데이터 (아스팔트 이름 변경)
+            const substanceData = [
+                { id: 'LPG', name: '액화 석유 가스', shortName: 'LPG', range: '-42 ~ 1°C', color: '#a5f3fc', boilY: 80 },
+                { id: 'GASOLINE', name: '휘발유', shortName: '휘발유', range: '30 ~ 120°C', color: '#fcd34d', boilY: 170 },
+                { id: 'KEROSENE', name: '등유', shortName: '등유', range: '150 ~ 280°C', color: '#fdba74', boilY: 260 },
+                { id: 'DIESEL', name: '경유', shortName: '경유', range: '230 ~ 350°C', color: '#f97316', boilY: 350 },
+                { id: 'FUEL_OIL', name: '중유', shortName: '중유', range: '300°C 이상', color: '#ef4444', boilY: 440 },
+                { id: 'ASPHALT', name: '찌꺼기', shortName: '찌꺼기', range: '잔여물', color: '#451a03', boilY: 540 }
+            ];
+
+            // 캔버스 상수 설정 (레이아웃 조정을 위해)
+            const TOWER_X = 140; // 타워를 오른쪽으로 조금 밀어 탱크 공간 확보
+            const TOWER_W = 140; // 타워 너비
+            const TOWER_H = 500;
+            const TOWER_Y = 50;
+            const TANK_X = 20;
+            const TANK_Y = 480;
+            const DROP_ZONE_X_START = 430; // 드롭존과 연결되는 파이프 끝지점
+
+            // Canvas 그리기 관련 함수들
+            function drawTower() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 1. 증류탑 본체 (사실적 디자인)
+                const grd = ctx.createLinearGradient(TOWER_X, TOWER_Y, TOWER_X + TOWER_W, TOWER_Y);
+                grd.addColorStop(0, '#94a3b8');   // 그림자
+                grd.addColorStop(0.2, '#e2e8f0'); // 하이라이트
+                grd.addColorStop(0.5, '#f1f5f9'); // 중앙
+                grd.addColorStop(0.8, '#cbd5e1'); // 그림자
+                grd.addColorStop(1, '#64748b');   // 짙은 그림자
+
+                ctx.fillStyle = grd;
+                ctx.fillRect(TOWER_X, TOWER_Y, TOWER_W, TOWER_H);
+                
+                // 테두리
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(TOWER_X, TOWER_Y, TOWER_W, TOWER_H);
+
+                // 2. 내부 트레이 (선반) 그리기 - 사실적 느낌 추가
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(71, 85, 105, 0.4)';
+                const trayCount = 10;
+                const trayGap = TOWER_H / trayCount;
+                
+                for(let i=1; i<trayCount; i++) {
+                    const y = TOWER_Y + i * trayGap;
+                    // 점선으로 트레이 표현
+                    ctx.beginPath();
+                    ctx.setLineDash([5, 5]);
+                    ctx.moveTo(TOWER_X + 10, y);
+                    ctx.lineTo(TOWER_X + TOWER_W - 10, y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // 버블 캡(Bubble cap) 느낌의 작은 사각형들
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    for(let j=0; j<4; j++) {
+                        ctx.fillRect(TOWER_X + 25 + j*30, y-5, 10, 5);
+                    }
+                }
+
+                // 3. 배출 파이프 그리기
+                const pipePositions = [80, 170, 260, 350, 440, 540];
+                
+                pipePositions.forEach((y, index) => {
+                    const pipeLength = DROP_ZONE_X_START - (TOWER_X + TOWER_W);
+                    
+                    // 파이프 그라데이션
+                    const pipeGrd = ctx.createLinearGradient(0, y-10, 0, y+10);
+                    pipeGrd.addColorStop(0, '#64748b');
+                    pipeGrd.addColorStop(0.5, '#cbd5e1');
+                    pipeGrd.addColorStop(1, '#475569');
+
+                    ctx.fillStyle = pipeGrd;
+                    // 오른쪽으로 뻗는 파이프
+                    ctx.fillRect(TOWER_X + TOWER_W, y - 8, pipeLength, 16);
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(TOWER_X + TOWER_W, y - 8, pipeLength, 16);
+
+                    // "액체 상태" 텍스트 (마지막 찌꺼기 제외)
+                    if (index < 5) { // 아스팔트 제외
+                        ctx.fillStyle = '#475569';
+                        ctx.font = '10px Inter';
+                        ctx.textAlign = 'center';
+                        // 파이프 중간 위쪽에 표시
+                        ctx.fillText("액체 상태", TOWER_X + TOWER_W + pipeLength/2, y - 12);
+                    }
+                });
+
+                // 4. 가열로 (하단)
+                ctx.fillStyle = '#b91c1c';
+                ctx.beginPath();
+                ctx.moveTo(TOWER_X, TOWER_Y + TOWER_H);
+                ctx.lineTo(TOWER_X + TOWER_W, TOWER_Y + TOWER_H);
+                ctx.lineTo(TOWER_X + TOWER_W + 15, TOWER_Y + TOWER_H + 40);
+                ctx.lineTo(TOWER_X - 15, TOWER_Y + TOWER_H + 40);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // 가열로 불꽃 효과 장식
+                if(isHeating) {
+                    ctx.font = '20px serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("🔥", TOWER_X + TOWER_W/2, TOWER_Y + TOWER_H + 25);
+                }
+
+                // 5. 원유 탱크 및 연결부
+                const TANK_W = 80;
+                const TANK_H = 100;
+                const PIPE_CONN_Y = TOWER_Y + TOWER_H - 40; // 타워 하단부로 연결
+
+                // 연결 파이프 (탱크 -> 타워)
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(TANK_X + TANK_W, PIPE_CONN_Y, TOWER_X - (TANK_X + TANK_W), 20);
+                ctx.strokeRect(TANK_X + TANK_W, PIPE_CONN_Y, TOWER_X - (TANK_X + TANK_W), 20);
+
+                // 흐름 화살표
+                ctx.fillStyle = '#e2e8f0';
+                ctx.beginPath();
+                const arrowX = TANK_X + TANK_W + 20;
+                const arrowY = PIPE_CONN_Y + 10;
+                ctx.moveTo(arrowX, arrowY - 5);
+                ctx.lineTo(arrowX + 10, arrowY);
+                ctx.lineTo(arrowX, arrowY + 5);
+                ctx.fill();
+
+                // 탱크 본체
+                const tankGrd = ctx.createLinearGradient(TANK_X, TANK_Y, TANK_X + TANK_W, TANK_Y);
+                tankGrd.addColorStop(0, '#334155');
+                tankGrd.addColorStop(0.4, '#475569');
+                tankGrd.addColorStop(1, '#1e293b');
+                
+                ctx.fillStyle = tankGrd;
+                ctx.fillRect(TANK_X, TANK_Y, TANK_W, TANK_H);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#0f172a';
+                ctx.strokeRect(TANK_X, TANK_Y, TANK_W, TANK_H);
+
+                // 탱크 라벨
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = 'bold 14px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText("원유", TANK_X + TANK_W/2, TANK_Y + 40);
+                ctx.fillText("저장소", TANK_X + TANK_W/2, TANK_Y + 60);
+
+                // 6. 온도계
+                drawThermometer();
+            }
+
+            function drawThermometer() {
+                const x = 110; // 타워 왼쪽
+                const yStart = 60;
+                const height = 400;
+
+                // 막대
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fillRect(x, yStart, 8, height);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, yStart, 8, height);
+                
+                // 눈금 및 텍스트
+                ctx.fillStyle = '#64748b';
+                ctx.font = '10px Inter';
+                ctx.textAlign = 'right';
+                
+                const temps = [
+                    { y: 80, t: '25°C' },
+                    { y: 170, t: '100°C' },
+                    { y: 260, t: '200°C' },
+                    { y: 350, t: '300°C' },
+                    { y: 440, t: '350°C' }
+                ];
+
+                temps.forEach(item => {
+                    ctx.beginPath();
+                    ctx.moveTo(x, item.y);
+                    ctx.lineTo(x-5, item.y);
+                    ctx.stroke();
+                    ctx.fillText(item.t, x - 8, item.y + 3);
+                });
+
+                // 빨간 온도 표시 (가열 시 상승)
+                if (isHeating) {
+                    const mercuryH = height * 0.9;
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(x + 1, yStart + height - mercuryH, 6, mercuryH);
+                } else {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(x + 1, yStart + height - 20, 6, 20);
+                }
+            }
+
+            function createBubble() {
+                if (!isHeating) return;
+                
+                // 1. 랜덤 물질 선택 (찌꺼기 제외: 0~4번 인덱스만 사용)
+                const substanceIndex = Math.floor(Math.random() * 5); 
+                const substance = substanceData[substanceIndex];
+                
+                // 2. 초기 위치: 원유 저장소 내부
+                const startX = TANK_X + 20 + Math.random() * 40;
+                const startY = TANK_Y + 20 + Math.random() * 60;
+
+                bubbles.push({ 
+                    x: startX, 
+                    y: startY, 
+                    r: 3 + Math.random() * 3, 
+                    speed: 1.5 + Math.random() * 1.5, 
+                    color: substance.color,
+                    targetY: substance.boilY,
+                    state: 'tank_to_tower' // 새로운 초기 상태
+                });
+            }
+
+            function updateBubbles() {
+                // 파이프 연결부 Y좌표
+                const PIPE_Y = TOWER_Y + TOWER_H - 30; 
+                const TOWER_CENTER_X = TOWER_X + TOWER_W / 2;
+
+                for (let i = 0; i < bubbles.length; i++) {
+                    const b = bubbles[i];
+                    
+                    if (b.state === 'tank_to_tower') {
+                        // 1단계: 탱크에서 파이프를 통해 타워 중앙 하단으로 이동
+                        // 먼저 파이프 높이까지 이동
+                        if (Math.abs(b.y - PIPE_Y) > 5) {
+                            b.y += (PIPE_Y - b.y) * 0.1; // 부드럽게 파이프 높이로
+                        }
+                        
+                        // 오른쪽으로 이동
+                        b.x += b.speed;
+
+                        // 타워 중앙에 도달하면 상승 시작
+                        if (b.x >= TOWER_CENTER_X - 20 + Math.random()*40) {
+                            b.state = 'rising';
+                        }
+
+                    } else if (b.state === 'rising') {
+                        // 2단계: 타워 내부 상승 (기체 상태)
+                        b.y -= b.speed;
+                        
+                        // 약간의 좌우 흔들림 (기체 느낌)
+                        b.x += Math.sin(b.y * 0.05) * 0.5;
+
+                        // 목표 높이 도달
+                        if (b.y <= b.targetY) {
+                            b.y = b.targetY; 
+                            b.state = 'exiting'; 
+                        }
+
+                    } else if (b.state === 'exiting') {
+                        // 3단계: 배출 파이프 이동 (액체 상태)
+                        b.x += b.speed;
+                    }
+                    
+                    // 그리기
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    ctx.fillStyle = b.color;
+                    ctx.fill();
+                    
+                    // 기체 상태일 때만 테두리 (액체는 꽉 채운 느낌)
+                    if (b.state === 'rising' || b.state === 'tank_to_tower') {
+                         ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                         ctx.stroke();
+                    }
+
+                    // 화면 밖으로 나가면 제거
+                    if (b.x > canvas.width) {
+                        bubbles.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+
+            function animate() {
+                drawTower();
+                if (isHeating) {
+                    if (Math.random() < 0.4) createBubble(); 
+                    updateBubbles();
+                }
+                animationId = requestAnimationFrame(animate);
+            }
+
+            // --- 게임 로직 (이전과 동일) ---
+            function handleItemClick(element) {
+                if (element.classList.contains('hidden-item')) return;
+                document.querySelectorAll('.draggable-item').forEach(el => el.classList.remove('selected'));
+                document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('active-target'));
+
+                if (selectedItem === element) {
+                    selectedItem = null;
+                    return;
+                }
+                selectedItem = element;
+                element.classList.add('selected');
+                document.querySelectorAll('.drop-zone:not(.correct)').forEach(zone => zone.classList.add('active-target'));
+            }
+
+            function handleZoneClick(zone) {
+                if (!selectedItem) {
+                    if (!zone.classList.contains('correct')) alert("먼저 목록에서 물질을 선택해주세요.");
+                    return;
+                }
+                if (zone.classList.contains('correct')) return;
+
+                const targetId = zone.dataset.target;
+                const selectedId = selectedItem.dataset.id;
+
+                if (targetId === selectedId) {
+                    const data = substanceData.find(s => s.id === selectedId);
+                    zone.className = 'drop-zone correct';
+                    zone.style.backgroundColor = data.color;
+                    // 체크표시 + 텍스트
+                    zone.innerHTML = `<span class="mr-1">✅</span> ${data.shortName}`;
+                    
+                    selectedItem.classList.add('hidden-item');
+                    selectedItem.classList.remove('selected');
+                    selectedItem = null;
+                    document.querySelectorAll('.drop-zone').forEach(el => el.classList.remove('active-target'));
+
+                    checkWin();
+                } else {
+                    zone.style.backgroundColor = '#fee2e2';
+                    zone.style.borderColor = '#ef4444';
+                    setTimeout(() => {
+                        if (!zone.classList.contains('correct')) {
+                            zone.style.backgroundColor = '';
+                            zone.style.borderColor = '';
+                        }
+                    }, 500);
+                }
+            }
+
+            function checkWin() {
+                const totalZones = document.querySelectorAll('.drop-zone').length;
+                const correctZones = document.querySelectorAll('.drop-zone.correct').length;
+                
+                if (correctZones === totalZones) {
+                    setTimeout(() => {
+                        successMsg.classList.remove('hidden');
+                        startSimulation(); 
+                    }, 500);
+                }
+            }
+
+            function initGame() {
+                const container = document.getElementById('draggablesContainer');
+                const dropZones = document.querySelectorAll('.drop-zone');
+                
+                container.innerHTML = '';
+                selectedItem = null;
+                successMsg.classList.add('hidden');
+                stopSimulation();
+                
+                // 아스팔트는 제외하고 섞기
+                const draggableItems = substanceData.filter(sub => sub.id !== 'ASPHALT');
+                const shuffled = [...draggableItems].sort(() => Math.random() - 0.5);
+
+                shuffled.forEach(sub => {
+                    const div = document.createElement('div');
+                    div.className = 'draggable-item';
+                    div.draggable = true; 
+                    div.dataset.id = sub.id;
+                    div.innerHTML = `<span>${sub.shortName}</span><span class="temp-label">${sub.range}</span>`;
+                    div.addEventListener('click', (e) => { e.stopPropagation(); handleItemClick(div); });
+                    div.addEventListener('dragstart', (e) => { handleItemClick(div); e.dataTransfer.setData('text/plain', sub.id); });
+                    container.appendChild(div);
+                });
+
+                dropZones.forEach(zone => {
+                    // 찌꺼기(아스팔트) 초기화
+                    if (zone.dataset.target === 'ASPHALT') {
+                        const asphaltData = substanceData.find(s => s.id === 'ASPHALT');
+                        zone.className = 'drop-zone correct fixed-correct'; 
+                        zone.innerHTML = `<span class="mr-1">🔒</span> ${asphaltData.shortName}`;
+                        return;
+                    }
+                    zone.innerHTML = '<span class="text-slate-400 text-xs pointer-events-none">여기에 배치</span>';
+                    zone.className = 'drop-zone'; 
+                    zone.style.backgroundColor = '';
+                    zone.style.borderColor = '';
+                    zone.onclick = () => handleZoneClick(zone);
+                    zone.ondragover = (e) => { e.preventDefault(); if(!zone.classList.contains('correct')) zone.classList.add('hover'); };
+                    zone.ondragleave = () => zone.classList.remove('hover');
+                    zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('hover'); handleZoneClick(zone); };
+                });
+            }
+
+            function startSimulation() {
+                isHeating = true;
+                startBtn.disabled = true;
+                startBtn.className = "py-3 bg-slate-400 cursor-not-allowed text-white rounded-xl font-bold flex justify-center items-center gap-2";
+                stopBtn.disabled = false;
+                stopBtn.className = "py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2";
+                statusIndicator.innerText = "가열 및 분리 진행 중";
+                statusIndicator.className = "font-bold text-rose-500 animate-pulse";
+            }
+
+            function stopSimulation() {
+                isHeating = false;
+                bubbles = [];
+                startBtn.disabled = false;
+                startBtn.className = "py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform flex justify-center items-center gap-2";
+                stopBtn.disabled = true;
+                stopBtn.className = "py-3 bg-slate-400 cursor-not-allowed text-white rounded-xl font-bold flex justify-center items-center gap-2";
+                statusIndicator.innerText = "대기 중";
+                statusIndicator.className = "font-bold text-slate-400";
+            }
+
+            startBtn.addEventListener('click', startSimulation);
+            stopBtn.addEventListener('click', stopSimulation);
+            resetBtn.addEventListener('click', initGame);
+            restartBtn.addEventListener('click', initGame);
+
+            animate();
+            initGame();
+        });
+    </script>
+</body>
+</html>
